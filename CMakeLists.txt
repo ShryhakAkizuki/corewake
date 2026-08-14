@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(corewake LANGUAGES CXX)
+project(corewake LANGUAGES C CXX)
 
 # Estándar C++ mínimo
 set(CMAKE_CXX_STANDARD 17)
@@ -11,7 +11,11 @@ option(ENABLE_TESTS "Habilitar pruebas unitarias" ON)
 option(ENABLE_CUDA "Habilitar soporte CUDA" OFF)
 
 # Fuente principal
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME}
+    src/main.cpp
+    src/core/wol_engine.c
+)
+target_include_directories(${PROJECT_NAME} PRIVATE src)
 
 # Dependencias mediante vcpkg
 # find_package(fmt CONFIG REQUIRED)
@@ -21,9 +25,24 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 if(ENABLE_TESTS)
     enable_testing()
     find_package(Catch2 CONFIG REQUIRED)
-    add_executable(tests tests/test_main.cpp)
-    target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
-    add_test(NAME ${PROJECT_NAME}_tests COMMAND tests)
+
+    #  Core
+    add_executable(test_core tests/test_core.cpp src/core/wol_engine.c)
+    target_include_directories(test_core PRIVATE src)
+    target_link_libraries(test_core PRIVATE Catch2::Catch2WithMain)
+    add_test(NAME test_core COMMAND test_core)
+
+    # Ports
+    # add_executable(test_ports tests/test_ports.cpp src/core/wol_engine.c)
+    # target_include_directories(test_ports PRIVATE src)
+    # target_link_libraries(test_ports PRIVATE Catch2::Catch2WithMain)
+    # add_test(NAME test_ports COMMAND test_ports)
+
+    # Adapters
+    # add_executable(test_adapters tests/test_adapters.cpp src/core/wol_engine.c)
+    # target_include_directories(test_adapters PRIVATE src)
+    # target_link_libraries(test_adapters PRIVATE Catch2::Catch2WithMain)
+    # add_test(NAME test_adapters COMMAND test_adapters)
 endif()
 
 # CUDA (Futuro)
