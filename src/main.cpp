@@ -1,4 +1,5 @@
 #include <iostream>
+#include "core/translator.h"
 
 int main() {
     // Compilador y versión
@@ -41,6 +42,16 @@ int main() {
 #else
     std::cout << "C++17 o superior: NO" << std::endl;
 #endif
+
+    printf("REGISTER_RELATIVE_PATH: %s\n", REGISTER_RELATIVE_PATH);
+    printf("FILE_NAME: %s\n", FILE_NAME);
+
+    char ExecPath[1024];
+    if (get_executable_dir(ExecPath, sizeof(ExecPath)) == 0) {
+        printf("Executable Path: %s\n", ExecPath);
+    } else {
+        printf("Failed to get executable path.\n");
+    }
 
     return 0;
 }

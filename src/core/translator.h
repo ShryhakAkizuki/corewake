@@ -5,11 +5,15 @@
 extern "C" {
 #endif
 
-#define REGISTER_RELATIVE_PATH  "/config/"
+#include <stdio.h>
+#include <stddef.h>
+
+#define REGISTER_RELATIVE_PATH  "config/"
 #define FILE_NAME  "aliases.conf"
 
-int resolve_alias(const char* alias, const char* mac);
-int search_file(const char* path);
+int resolve_alias(FILE* fp, const char* alias, const char* mac);
+int load_file(const char* executable_path, FILE** file);
+int get_executable_dir(char* path, size_t size);
 
 #ifdef __cplusplus
 }
