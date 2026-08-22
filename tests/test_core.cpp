@@ -2,18 +2,11 @@
 #include <cstdint>
 #include <cstring>
 #include "core/wol_engine.h"
-#include "core/translator.h"
-
-#if defined(_WIN32) || defined(_WIN64)
-    #include <windows.h>
-#elif defined(__linux__)
-    #include <sys/stat.h>
-#endif
 
 // --------------------------------------------------------------
 // build_magic_packet()
 // --------------------------------------------------------------
-TEST_CASE("build_magic_packet - build packet", "[wol_engine]") {
+TEST_CASE("build_magic_packet - build packet", "[wol]") {
     uint8_t mac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
     uint8_t packet[MAGIC_PACKET_SIZE] = {0};
 
@@ -38,7 +31,7 @@ TEST_CASE("build_magic_packet - build packet", "[wol_engine]") {
     }
 }
 
-TEST_CASE("build_magic_packet - reject null pointers", "[wol_engine]") {
+TEST_CASE("build_magic_packet - reject null pointers", "[wol]") {
     uint8_t mac[6] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     uint8_t packet[MAGIC_PACKET_SIZE] = {0};
 
@@ -55,7 +48,7 @@ TEST_CASE("build_magic_packet - reject null pointers", "[wol_engine]") {
     }
 }
 
-TEST_CASE("build_magic_packet - MAC 00:00:00:00:00:00", "[wol_engine]") {
+TEST_CASE("build_magic_packet - MAC 00:00:00:00:00:00", "[wol]") {
     uint8_t mac[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     uint8_t packet[MAGIC_PACKET_SIZE] = {0};
 
@@ -70,7 +63,7 @@ TEST_CASE("build_magic_packet - MAC 00:00:00:00:00:00", "[wol_engine]") {
     }
 }
 
-TEST_CASE("build_magic_packet - MAC 01:02:03:04:05:06", "[wol_engine]") {
+TEST_CASE("build_magic_packet - MAC 01:02:03:04:05:06", "[wol]") {
     uint8_t mac[6] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
     uint8_t packet[MAGIC_PACKET_SIZE] = {0};
 
@@ -96,7 +89,7 @@ TEST_CASE("build_magic_packet - MAC 01:02:03:04:05:06", "[wol_engine]") {
 // --------------------------------------------------------------
 // parse_mac_string()
 // --------------------------------------------------------------
-TEST_CASE("parse_mac_string - Uppercase MAC", "[wol_engine]") {
+TEST_CASE("parse_mac_string - Uppercase MAC", "[wol]") {
     uint8_t mac[6];
 
     int ret = parse_mac_string("AA:BB:CC:DD:EE:FF", mac);
@@ -110,7 +103,7 @@ TEST_CASE("parse_mac_string - Uppercase MAC", "[wol_engine]") {
     REQUIRE(mac[5] == 0xFF);
 }
 
-TEST_CASE("parse_mac_string - Lowercase MAC", "[wol_engine]") {
+TEST_CASE("parse_mac_string - Lowercase MAC", "[wol]") {
     uint8_t mac[6];
 
     int ret = parse_mac_string("aa:bb:cc:dd:ee:ff", mac);
@@ -124,7 +117,7 @@ TEST_CASE("parse_mac_string - Lowercase MAC", "[wol_engine]") {
     REQUIRE(mac[5] == 0xFF);
 }
 
-TEST_CASE("parse_mac_string - Mixedcase MAC", "[wol_engine]") {
+TEST_CASE("parse_mac_string - Mixedcase MAC", "[wol]") {
     uint8_t mac[6];
 
     int ret = parse_mac_string("Aa:Bb:Cc:Dd:Ee:Ff", mac);
@@ -138,7 +131,7 @@ TEST_CASE("parse_mac_string - Mixedcase MAC", "[wol_engine]") {
     REQUIRE(mac[5] == 0xFF);
 }
 
-TEST_CASE("parse_mac_string - MAC 00:00:00:00:00:00", "[wol_engine]") {
+TEST_CASE("parse_mac_string - MAC 00:00:00:00:00:00", "[wol]") {
     uint8_t mac[6];
     int result = parse_mac_string("00:00:00:00:00:00", mac);
     REQUIRE(result == 0);
@@ -146,7 +139,7 @@ TEST_CASE("parse_mac_string - MAC 00:00:00:00:00:00", "[wol_engine]") {
     REQUIRE(mac[5] == 0x00);
 }
 
-TEST_CASE("parse_mac_string - MAC FF:FF:FF:FF:FF:FF", "[wol_engine]") {
+TEST_CASE("parse_mac_string - MAC FF:FF:FF:FF:FF:FF", "[wol]") {
     uint8_t mac[6];
     int result = parse_mac_string("FF:FF:FF:FF:FF:FF", mac);
     REQUIRE(result == 0);
@@ -154,7 +147,7 @@ TEST_CASE("parse_mac_string - MAC FF:FF:FF:FF:FF:FF", "[wol_engine]") {
     REQUIRE(mac[5] == 0xFF);
 }
 
-TEST_CASE("parse_mac_string - MAC 01:23:45:67:89:AB", "[wol_engine]") {
+TEST_CASE("parse_mac_string - MAC 01:23:45:67:89:AB", "[wol]") {
     uint8_t mac[6];
     int result = parse_mac_string("01:23:45:67:89:AB", mac);
     REQUIRE(result == 0);
@@ -162,7 +155,7 @@ TEST_CASE("parse_mac_string - MAC 01:23:45:67:89:AB", "[wol_engine]") {
     REQUIRE(mac[5] == 0xAB);
 }
 
-TEST_CASE("parse_mac_string - reject null pointers", "[wol_engine]") {
+TEST_CASE("parse_mac_string - reject null pointers", "[wol]") {
     uint8_t mac[6];
 
     SECTION("str == NULL - return -1") {
@@ -178,7 +171,7 @@ TEST_CASE("parse_mac_string - reject null pointers", "[wol_engine]") {
     }
 }
 
-TEST_CASE("parse_mac_string - reject invalid format", "[wol_engine]") {
+TEST_CASE("parse_mac_string - reject invalid format", "[wol]") {
     uint8_t mac[6];
 
     SECTION("No colon") {
@@ -205,70 +198,3 @@ TEST_CASE("parse_mac_string - reject invalid format", "[wol_engine]") {
         REQUIRE(parse_mac_string(":::::", mac) == -1);
     }
 }
-
-// --------------------------------------------------------------
-// get_executable_dir()
-// --------------------------------------------------------------
-
-TEST_CASE("get_executable_dir - reject null/invalid values", "[translator]") {
-    size_t kBufferSize = 32768;
-
-    SECTION("buffer == NULL - return -1") {
-        REQUIRE(get_executable_dir(NULL, kBufferSize) == -1);
-    }
-
-    SECTION("size == 0 - return -1") {
-        char buffer[kBufferSize];
-        REQUIRE(get_executable_dir(buffer, 0) == -1);
-    }
-}
-
-TEST_CASE("get_executable_dir - retrieve Nnon-empty path", "[translator]") {
-    size_t kBufferSize = 32768;
-    char buffer[kBufferSize];
-
-    int ret = get_executable_dir(buffer, kBufferSize);
-
-    REQUIRE(ret == 0);
-    REQUIRE(strlen(buffer) > 0);
-
-    REQUIRE(buffer[0] != '\0');
-    REQUIRE(buffer[kBufferSize - 1] == '\0');
-}
-
-TEST_CASE("get_executable_dir - retrieve executable directory", "[translator]") {
-    size_t kBufferSize = 32768;
-
-    char First_Buffer[kBufferSize];
-    char Second_Buffer[kBufferSize];
-
-    REQUIRE(get_executable_dir(First_Buffer, kBufferSize) == 0);
-    REQUIRE(get_executable_dir(Second_Buffer, kBufferSize) == 0);
-
-    REQUIRE(strcmp(First_Buffer, Second_Buffer) == 0);
-
-}
-
-#if defined(__linux__)
-    TEST_CASE("get_executable_dir - file exists - Linux", "[translator]") {
-        size_t kBufferSize = 32768;
-        char *buffer = new char[kBufferSize];
-        REQUIRE(get_executable_dir(buffer, kBufferSize) == 0);
-
-        struct stat file_stat;
-        REQUIRE(stat(buffer, &file_stat) == 0);
-        CHECK(S_ISREG(file_stat.st_mode));
-        delete[] buffer;
-    }
-#elif defined(_WIN32) || defined(_WIN64)
-    TEST_CASE("get_executable_dir - file exists - Windows", "[translator]") {
-        size_t kBufferSize = 32768;
-        char *buffer = new char[kBufferSize];
-        REQUIRE(get_executable_dir(buffer, kBufferSize) == 0);
-
-        DWORD attributes = GetFileAttributesA(buffer);
-        REQUIRE(attributes != INVALID_FILE_ATTRIBUTES);
-        CHECK((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0);
-        delete[] buffer;
-    }
-#endif

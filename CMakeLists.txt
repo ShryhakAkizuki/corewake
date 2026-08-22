@@ -14,7 +14,6 @@ option(ENABLE_CUDA "Habilitar soporte CUDA" OFF)
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/core/wol_engine.c
-    src/core/translator.c
 )
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 
@@ -28,11 +27,7 @@ if(ENABLE_TESTS)
     find_package(Catch2 CONFIG REQUIRED)
 
     #  Core
-    add_executable(test_core
-        tests/test_core.cpp 
-        src/core/wol_engine.c 
-        src/core/translator.c
-    )
+    add_executable(test_core tests/test_core.cpp src/core/wol_engine.c)
     target_include_directories(test_core PRIVATE src)
     target_link_libraries(test_core PRIVATE Catch2::Catch2WithMain)
     add_test(NAME test_core COMMAND test_core)
