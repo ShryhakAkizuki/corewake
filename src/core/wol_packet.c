@@ -46,7 +46,7 @@ int parse_mac_string(const char* str, uint8_t mac[MAC_ADDRESS_SIZE]) {
 }
 
 // Main
-int wake(wol_packet_t* self, const char* str) {
+int wake(const char* str, wol_packet_t* self) {
     if (self == NULL || str == NULL) return WOL_ERR_NULL;
     if (self->sender_vtable == NULL || self->sender_vtable->send == NULL) return WOL_ERR_NULL;
 

@@ -14,7 +14,7 @@ extern "C" {
 #define MAC_REPETITIONS   16
 #define MAGIC_PACKET_SIZE (BROADCAST_BYTES + MAC_REPETITIONS * MAC_ADDRESS_SIZE)
 
-// Códigos de error
+// Error codes
 typedef enum wol_err {
     WOL_OK         =  0,  // success
     WOL_ERR_NULL   = -1,  // null pointer
@@ -25,8 +25,8 @@ typedef enum wol_err {
 
 // Data
 typedef struct wol_packet {
-    uint8_t packet_buffer[MAGIC_PACKET_SIZE];
     sender_port_t* sender_vtable;
+    uint8_t packet_buffer[MAGIC_PACKET_SIZE];
 } wol_packet_t;
 
 // Root
@@ -34,7 +34,7 @@ wol_packet_t* wol_packet_create(sender_port_t* sender);
 void wol_packet_destroy(wol_packet_t* self);
 
 // Main
-int wake(wol_packet_t* self, const char* str);
+int wake(const char* str, wol_packet_t* self);
 
 // Methods
 int build_magic_packet(const uint8_t mac[MAC_ADDRESS_SIZE], uint8_t packet[MAGIC_PACKET_SIZE]);

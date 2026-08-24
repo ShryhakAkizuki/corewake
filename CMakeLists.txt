@@ -27,16 +27,10 @@ if(ENABLE_TESTS)
     find_package(Catch2 CONFIG REQUIRED)
 
     #  Core
-    add_executable(test_core tests/test_core.cpp src/core/wol_packet.c)
+    add_executable(test_core tests/test_core.cpp src/core/wol_packet.c src/core/aliases_cache.c)
     target_include_directories(test_core PRIVATE src)
     target_link_libraries(test_core PRIVATE Catch2::Catch2WithMain)
     add_test(NAME test_core COMMAND test_core)
-
-    # Ports
-    # add_executable(test_ports tests/test_ports.cpp src/core/wol_packet.c)
-    # target_include_directories(test_ports PRIVATE src)
-    # target_link_libraries(test_ports PRIVATE Catch2::Catch2WithMain)
-    # add_test(NAME test_ports COMMAND test_ports)
 
     # Adapters
     # add_executable(test_adapters tests/test_adapters.cpp src/core/wol_packet.c)
