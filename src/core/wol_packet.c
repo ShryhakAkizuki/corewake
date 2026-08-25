@@ -18,7 +18,7 @@ int build_magic_packet(const uint8_t mac[MAC_ADDRESS_SIZE], uint8_t packet[MAGIC
         }
     }
 
-    return MAGIC_PACKET_SIZE;
+    return WOL_OK;
 }
 
 int parse_mac_string(const char* str, uint8_t mac[MAC_ADDRESS_SIZE]) {
@@ -46,17 +46,18 @@ int parse_mac_string(const char* str, uint8_t mac[MAC_ADDRESS_SIZE]) {
 }
 
 // Main
-int wake(const char* str, wol_packet_t* self) {
+int core_wake(const char* str, wol_packet_t* self) {
     if (self == NULL || str == NULL) return WOL_ERR_NULL;
-    if (self->sender_vtable == NULL || self->sender_vtable->send == NULL) return WOL_ERR_NULL;
 
     uint8_t mac_temp[MAC_ADDRESS_SIZE];
 
     if (parse_mac_string(str, mac_temp) != WOL_OK) return WOL_ERR_PARSE;
 
-    if (build_magic_packet(mac_temp, self->packet_buffer) != MAGIC_PACKET_SIZE) return WOL_ERR_BUILD;
+    if (build_magic_packet(mac_temp, self->packet_buffer) != WOL_OK) return WOL_ERR_BUILD;
 
-    return self->sender_vtable->send(self->packet_buffer, (size_t)MAGIC_PACKET_SIZE, self->sender_vtable);
+    int send = self->sender_vtable->send(self->packet_buffer, (size_t)MAGIC_PACKET_SIZE, self->sender_vtable);
+
+    return (send == 0) ? WOL_OK : WOL_ERR_SEND;
 }
 
 // Root
@@ -65,16 +66,15 @@ wol_packet_t* wol_packet_create(sender_port_t* sender) {
 
     wol_packet_t* self = (wol_packet_t*)calloc(1, sizeof(wol_packet_t));
 
-    if (self != NULL) self->sender_vtable = sender;
+    if (self == NULL) return NULL; 
+
+    self->sender_vtable = sender;
 
     return self;
 }
 
 void wol_packet_destroy(wol_packet_t* self) {
     if (self == NULL) return;
-
-    if (self->sender_vtable != NULL && self->sender_vtable->close != NULL)
-        self->sender_vtable->close(self->sender_vtable);
 
     free(self);
 }

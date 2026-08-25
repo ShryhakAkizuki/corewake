@@ -34,7 +34,7 @@ wol_packet_t* wol_packet_create(sender_port_t* sender);
 void wol_packet_destroy(wol_packet_t* self);
 
 // Main
-int wake(const char* str, wol_packet_t* self);
+int core_wake(const char* str, wol_packet_t* self);
 
 // Methods
 int build_magic_packet(const uint8_t mac[MAC_ADDRESS_SIZE], uint8_t packet[MAGIC_PACKET_SIZE]);

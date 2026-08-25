@@ -105,6 +105,8 @@ alias_entry_t* binary_search(const char* alias, alias_cache_t* self) {
 alias_cache_t* alias_cache_init(void) {
     alias_cache_t* self = (alias_cache_t*)calloc(1, sizeof(alias_cache_t));
 
+    if (self == NULL) return NULL;
+
     return self;
 }
 
