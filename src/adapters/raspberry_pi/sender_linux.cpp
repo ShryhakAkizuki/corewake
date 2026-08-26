@@ -1,56 +1,68 @@
 #include "sender_linux.hpp"
 
 #include <arpa/inet.h>
-#include <cerrno>
-#include <cstring>
-#include <stdexcept>
-#include <string>
+#include <new>
 #include <sys/socket.h>
 #include <unistd.h>
 
 namespace {
-constexpr int kDefaultPort = 9;  
+constexpr int kDefaultPort = 9;
 }
 
-SenderLinux::SenderLinux(const char* dest_ip, int port)
+SenderLinux::SenderLinux()
     :   vtable_{nullptr},
-        fd_(-1),
+        id_socket_udp_(-1),
         port_(kDefaultPort),
         dest_addr_(0) {
+}
 
-    if (port <= 0) 
+SenderLinux* SenderLinux::create(const char* dest_ip, int port) {
+    SenderLinux* self = new (std::nothrow) SenderLinux();
+
+    if (self == nullptr) return nullptr;
+
+    if (self->init(dest_ip, port) != SENDER_LINUX_OK) {
+        delete self;
+        return nullptr;
+    }
+
+    return self;
+}
+
+int SenderLinux::init(const char* dest_ip, int port) {
+    if (port <= 0)
         port_ = kDefaultPort;
     else if (port > 65535)
-        throw std::invalid_argument("SenderLinux: port out of range (1..65535)");
-    else 
+        return SENDER_LINUX_ERR_INVALID_PORT;
+    else
         port_ = port;
 
     in_addr dest{};
-    if (dest_ip == nullptr || dest_ip[0] == '\0') 
+    if (dest_ip == nullptr || dest_ip[0] == '\0')
         dest.s_addr = htonl(INADDR_BROADCAST);
-    else if (::inet_pton(AF_INET, dest_ip, &dest) != 1) {
-        throw std::invalid_argument(
-            std::string("SenderLinux: Invalid IP '") + dest_ip + "'");
-    }
+    else if (::inet_pton(AF_INET, dest_ip, &dest) != 1)
+        return SENDER_LINUX_ERR_INVALID_IP;
     dest_addr_ = dest.s_addr;
 
-    fd_ = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd_ < 0) {
-        throw std::runtime_error(std::string("socket(): ") + std::strerror(errno));
-    }
+    id_socket_udp_ = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if (id_socket_udp_ < 0)
+        return SENDER_LINUX_ERR_SOCKET;
 
-    int opt = 1;  
-    if (::setsockopt(fd_, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt)) != 0) {
-        throw std::runtime_error(std::string("setsockopt(SO_BROADCAST): ") + std::strerror(errno));
+    int opt = 1;
+    if (::setsockopt(id_socket_udp_, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt)) != 0) {
+        ::close(id_socket_udp_);
+        id_socket_udp_ = -1;
+        return SENDER_LINUX_ERR_SETSOCKOPT;
     }
 
     vtable_.send = &SenderLinux::c_send;
+    return SENDER_LINUX_OK;
 }
 
 SenderLinux::~SenderLinux() {
-    if (fd_ >= 0) {
-        ::close(fd_);
-        fd_ = -1;
+    if (id_socket_udp_ >= 0) {
+        ::close(id_socket_udp_);
+        id_socket_udp_ = -1;
     }
 }
 
@@ -59,14 +71,10 @@ int SenderLinux::c_send(const uint8_t* packet, std::size_t len, sender_port_t* s
 
     SenderLinux* sl = reinterpret_cast<SenderLinux*>(self);
 
-    try {
-        return sl->send_to(packet, len);
-    } catch (const std::system_error&) {
-        return -1;
-    }
+    return sl->send_packet(packet, len);
 }
 
-int SenderLinux::send_to(const uint8_t* packet, std::size_t len) {
+int SenderLinux::send_packet(const uint8_t* packet, std::size_t len) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     sockaddr_in dest{};
@@ -74,6 +82,7 @@ int SenderLinux::send_to(const uint8_t* packet, std::size_t len) {
     dest.sin_port        = htons(static_cast<std::uint16_t>(port_));
     dest.sin_addr.s_addr = dest_addr_;
 
-    return (::send_to(fd_, packet, len, 0,
+    return (::sendto(id_socket_udp_, packet, len, 0,
                         reinterpret_cast<const sockaddr*>(&dest), sizeof(dest)) < 0) ? -1 : 0;
 }
+
