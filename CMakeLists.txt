@@ -25,6 +25,7 @@ target_include_directories(corewake_core PUBLIC src)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_library(corewake_adapter_pi STATIC
         src/adapters/raspberry_pi/sender_linux.cpp
+        src/adapters/raspberry_pi/loader_linux.cpp
     )
     target_link_libraries(corewake_adapter_pi PUBLIC corewake_core)
 
@@ -45,10 +46,27 @@ if(ENABLE_TESTS)
 
     # Raspberry Pi 5 (Linux) 
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        add_executable(test_adapter_raspberry_pi tests/test_adapter_raspberry_pi.cpp)
-        target_link_libraries(test_adapter_raspberry_pi PRIVATE
+
+        # Sender Adapter
+        add_executable(test_raspberry_pi_sender_adapter tests/test_raspberry_pi_sender_adapter.cpp)
+        target_link_libraries(test_raspberry_pi_sender_adapter PRIVATE
             corewake_adapter_pi corewake_core Catch2::Catch2WithMain)
-        add_test(NAME test_adapter_raspberry_pi COMMAND test_adapter_raspberry_pi)
+        add_test(NAME test_raspberry_pi_sender_adapter COMMAND test_raspberry_pi_sender_adapter)
+
+        # Loader Adapter
+        add_executable(test_raspberry_pi_loader_adapter tests/test_raspberry_pi_loader_adapter.cpp)
+        target_link_libraries(test_raspberry_pi_loader_adapter PRIVATE
+            corewake_adapter_pi corewake_core Catch2::Catch2WithMain)
+        add_test(NAME test_raspberry_pi_loader_adapter COMMAND test_raspberry_pi_loader_adapter)
+
+        # Test Aliases.INI
+        add_custom_command(TARGET test_loader_linux POST_BUILD
+            COMMAND ${CMAKE_COMMAND}
+                -DENV=${CMAKE_SOURCE_DIR}/tests/fixtures/aliases.env
+                -DGENERIC=${CMAKE_SOURCE_DIR}/aliases/aliases.INI
+                -DOUT=${CMAKE_BINARY_DIR}/aliases/aliases.INI
+                -P ${CMAKE_SOURCE_DIR}/cmake/generate_aliases.cmake
+            COMMENT "corewake: generando fixture aliases.INI para test_loader_linux (build-time)")
     endif()
 
 endif()

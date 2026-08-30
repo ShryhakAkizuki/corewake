@@ -14,7 +14,7 @@
 #include "core/wol_packet.h"
 #include "adapters/raspberry_pi/sender_linux.hpp"
 
-// The adapter owns a socket and is deliberately non-copyable and
+// The adapter owns a socket and is deliberately non-copyable and non-movable.
 static_assert(!std::is_copy_constructible_v<SenderLinux>, "SenderLinux must stay non-copyable");
 static_assert(!std::is_copy_assignable_v<SenderLinux>,    "SenderLinux must stay non-copyable");
 static_assert(!std::is_move_constructible_v<SenderLinux>, "SenderLinux must stay non-movable");
@@ -429,4 +429,14 @@ TEST_CASE("core_wake - malformed MAC strings fail with WOL_ERR_PARSE, nothing is
     };
 
     uint8_t buf[MAGIC_PACKET_SIZE] = {0};
+
+    for (const auto& m : bad_macs) {
+        INFO("malformed MAC '" << m.mac << "' (" << m.label << ")");
+        REQUIRE(core_wake(m.mac, wp) == WOL_ERR_PARSE);
+    }
+
+    REQUIRE(listener.receive(buf, sizeof(buf)) == -1);
+
+    wol_packet_destroy(wp);
+    delete sender;
 }

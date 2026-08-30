@@ -46,7 +46,7 @@ TEST_CASE("build_magic_packet - reject null pointers", "[wol]") {
         REQUIRE(build_magic_packet(mac, NULL) == WOL_ERR_NULL);
     }
 
-    SECTION("Ambos NULL - return WOL_ERR_NULL") {
+    SECTION("Both NULL - return WOL_ERR_NULL") {
         REQUIRE(build_magic_packet(NULL, NULL) == WOL_ERR_NULL);
     }
 }
@@ -169,7 +169,7 @@ TEST_CASE("parse_mac_string - reject null pointers", "[wol]") {
         REQUIRE(parse_mac_string("AA:BB:CC:DD:EE:FF", NULL) == WOL_ERR_NULL);
     }
 
-    SECTION("Ambos NULL - return WOL_ERR_NULL") {
+    SECTION("Both NULL - return WOL_ERR_NULL") {
         REQUIRE(parse_mac_string(NULL, NULL) == WOL_ERR_NULL);
     }
 }
@@ -394,8 +394,8 @@ TEST_CASE("alias_cache_search - MAC of max length (17 chars) fits buffer", "[ali
 TEST_CASE("alias_cache_search - binary search finds alias among many", "[alias]") {
     alias_cache_t* cache = alias_cache_init();
 
-    const char* aliases[]  = {"Router", "SmartTV", "PC", "Impresora", "Tablet",
-                                "Camaras", "Portatil", "Auriculares"};
+    const char* aliases[]  = {"Router", "SmartTV", "PC", "Printer", "Tablet",
+                                "Cameras", "Laptop", "Headphones"};
 
     const char* macs[]     = {"11:22:33:44:55:66", "22:33:44:55:66:77",
                                 "33:44:55:66:77:88", "44:55:66:77:88:99",
@@ -520,7 +520,7 @@ TEST_CASE("alias_cache_insert - reject duplicate alias", "[alias]") {
 TEST_CASE("alias_cache_insert - cache full at 16 entries", "[alias]") {
     alias_cache_t* cache = alias_cache_init();
 
-    // 16 aliases en orden aleatorio
+    // 16 aliases in random order
     const char* aliases[] = {"Zeta", "Alpha", "Milo", "Kilo", "Tango", "Bravo",
                                 "Echo", "Golf", "Julio", "Oscar", "Sierra", "Uniform",
                                 "Hotel", "Lima", "November", "Papa"};
@@ -732,7 +732,7 @@ int stub_loader_count = 0;
 int stub_loader_index = 0;              
 int stub_loader_next_result = LOADER_END; 
 
-const char* stub_loader_aliases[4] = { "PC", "TV", "ROBOT", "IMPRESORA" };
+const char* stub_loader_aliases[4] = { "PC", "TV", "ROBOT", "PRINTER" };
 const char* stub_loader_macs[4]    = { "AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66",
                                         "22:33:44:55:66:77", "33:44:55:66:77:88" };
 
