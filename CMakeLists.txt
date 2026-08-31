@@ -60,7 +60,7 @@ if(ENABLE_TESTS)
         add_test(NAME test_raspberry_pi_loader_adapter COMMAND test_raspberry_pi_loader_adapter)
 
         # Test Aliases.INI
-        add_custom_command(TARGET test_loader_linux POST_BUILD
+        add_custom_command(TARGET test_raspberry_pi_loader_adapter POST_BUILD
             COMMAND ${CMAKE_COMMAND}
                 -DENV=${CMAKE_SOURCE_DIR}/tests/fixtures/aliases.env
                 -DGENERIC=${CMAKE_SOURCE_DIR}/aliases/aliases.INI

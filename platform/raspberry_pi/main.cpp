@@ -1,16 +1,9 @@
-// platform/raspberry_pi/main.cpp
-//
 // Composition root — Raspberry Pi 5 (Linux).
-//
-// Carga todos los alias del INI hacia la cache al iniciar y escucha
-// permanentemente alias desde la consola (stdin) a modo de prueba manual.
-// Cada alias ingresado se traduce a MAC (cache -> loader) y dispara un
-// magic packet UDP.
 //
 // Use: ./corewake_pi
 //   p.ej.:
-//     PC   -> traduce "PC" y envia el magic packet
-//     exit -> finaliza el servicio
+//     PC   -> translate "PC" and send the magic packet
+//     exit -> finish the service
 
 #include <cstdio>
 #include <cstring>
@@ -66,7 +59,7 @@ int main() {
     }
 
     // ------------------------------------------------------------------
-    // 3) Preload: cargar toda la informacion al iniciar hacia la cache
+    // 3) Initialization
     // ------------------------------------------------------------------
     const int pre = translator_preload(tr);
     if (pre != TRANSLATOR_OK) {
@@ -76,7 +69,7 @@ int main() {
     }
 
     // ------------------------------------------------------------------
-    // 4) Escucha permanente de alias (stdin) — prueba manual del listener
+    // 4) Temporal Console Alias Listener (stdin)
     // ------------------------------------------------------------------
     std::printf("[corewake] esperando alias (stdin) — escribe 'exit' para salir\n");
 
@@ -87,9 +80,8 @@ int main() {
         std::fflush(stdout);
 
         if (std::fgets(line, sizeof(line), stdin) == nullptr)
-            break;  // EOF (Ctrl-D o redirección agotada)
+            break;  // EOF
 
-        // Se retira únicamente el newline de la entrada; el alias se usa tal cual.
         line[strcspn(line, "\r\n")] = '\0';
 
         if (line[0] == '\0') continue;  // línea vacía
@@ -99,13 +91,13 @@ int main() {
 
         switch (rc) {
             case TRANSLATOR_OK:
-                std::printf("[corewake] OK: magic packet enviado para '%s'\n", line);
+                std::printf("[corewake] OK: magic packet sent to '%s'\n", line);
                 break;
             case TRANSLATOR_ERR_NOT_FOUND:
-                std::fprintf(stderr, "[corewake] error: alias '%s' no existe en el INI\n", line);
+                std::fprintf(stderr, "[corewake] error: alias '%s' doesn't exist on INI file\n", line);
                 break;
             case TRANSLATOR_ERR_WOL:
-                std::fprintf(stderr, "[corewake] error: fallo enviando el magic packet de '%s'\n", line);
+                std::fprintf(stderr, "[corewake] error: error sending the magic packet of '%s'\n", line);
                 break;
             default:
                 std::fprintf(stderr, "[corewake] error: receive_request('%s') -> %d\n", line, rc);
@@ -114,7 +106,7 @@ int main() {
     }
 
     // ------------------------------------------------------------------
-    // 5) Teardown (inverso al orden de creacion)
+    // 5) Teardown
     // ------------------------------------------------------------------
     translator_destroy(tr);
     wol_packet_destroy(wp);

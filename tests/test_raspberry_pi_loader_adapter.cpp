@@ -1,16 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <mutex>
 #include <random>
 #include <string>
-#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -160,16 +156,14 @@ TEST_CASE("create() - valid format variants are accepted", "[loader_linux]") {
 TEST_CASE("create() - default path (nullptr or empty) loads <exe_dir>/aliases/aliases.INI", "[loader_linux]") {
     SECTION("file_path == nullptr") {
         LoaderLinux* loader = LoaderLinux::create(nullptr);
-        if (loader == nullptr)
-            SKIP("<exe_dir>/aliases/aliases.INI does not exist: the full CMake build is required");
+        REQUIRE(loader != nullptr);
         verify_default_fixture(loader);
         delete loader;
     }
 
     SECTION("file_path == empty string") {
         LoaderLinux* loader = LoaderLinux::create("");
-        if (loader == nullptr)
-            SKIP("<exe_dir>/aliases/aliases.INI does not exist: the full CMake build is required");
+        REQUIRE(loader != nullptr);
         verify_default_fixture(loader);
         delete loader;
     }
@@ -294,7 +288,7 @@ TEST_CASE("fetch() - resolves alias to exact MAC with LOADER_OK", "[loader_linux
 
     SECTION("the MAC is returned with its exact case and length 17") {
         mac[0] = '\0';
-        REQUIRE(vt->fetch(kExpected[2].alias, mac, vt) == LOADER_OK);
+        REQUIRE(vt->fetch(kExpected[1].alias, mac, vt) == LOADER_OK);
         REQUIRE(std::strcmp(mac, "aa:bb:cc:dd:ee:ff") == 0);
         REQUIRE(std::strlen(mac) == MAC_STR_MAX_LEN);
     }
