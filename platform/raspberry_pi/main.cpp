@@ -1,12 +1,11 @@
 // Composition root — Raspberry Pi 5 (Linux).
 //
-// Use: ./corewake_pi
+// Use: COREWAKE_TOKEN=<token> ./corewake_pi
 //   p.ej.:
-//     PC   -> translate "PC" and send the magic packet
-//     exit -> finish the service
+//     POST /wake/PC  (Authorization: Bearer <token>) -> send the magic packet
 
+#include <csignal>
 #include <cstdio>
-#include <cstring>
 
 #include "core/aliases_cache.h"
 #include "core/translator.h"
@@ -14,6 +13,21 @@
 
 #include "adapters/raspberry_pi/loader_linux.hpp"
 #include "adapters/raspberry_pi/sender_linux.hpp"
+#include "adapters/raspberry_pi/listener_linux.hpp"
+
+namespace {
+
+ListenerLinux* g_listener = nullptr;
+
+void on_sigint(int) {
+    if (g_listener != nullptr) g_listener->stop();
+}
+
+int on_wake_request(const char* alias, void* user) {
+    return receive_request(alias, static_cast<translator_t*>(user));
+}
+
+} // namespace
 
 int main() {
     // ------------------------------------------------------------------
@@ -69,45 +83,32 @@ int main() {
     }
 
     // ------------------------------------------------------------------
-    // 4) Temporal Console Alias Listener (stdin)
+    // 4) HTTP Listener (POST /wake/<alias>, Bearer token)
     // ------------------------------------------------------------------
-    std::printf("[corewake] esperando alias (stdin) — escribe 'exit' para salir\n");
-
-    char line[128];
-
-    for (;;) {
-        std::printf("alias> ");
-        std::fflush(stdout);
-
-        if (std::fgets(line, sizeof(line), stdin) == nullptr)
-            break;  // EOF
-
-        line[strcspn(line, "\r\n")] = '\0';
-
-        if (line[0] == '\0') continue;  // línea vacía
-        if (std::strcmp(line, "exit") == 0) break;
-
-        const int rc = receive_request(line, tr);
-
-        switch (rc) {
-            case TRANSLATOR_OK:
-                std::printf("[corewake] OK: magic packet sent to '%s'\n", line);
-                break;
-            case TRANSLATOR_ERR_NOT_FOUND:
-                std::fprintf(stderr, "[corewake] error: alias '%s' doesn't exist on INI file\n", line);
-                break;
-            case TRANSLATOR_ERR_WOL:
-                std::fprintf(stderr, "[corewake] error: error sending the magic packet of '%s'\n", line);
-                break;
-            default:
-                std::fprintf(stderr, "[corewake] error: receive_request('%s') -> %d\n", line, rc);
-                break;
-        }
+    ListenerLinux* listener = ListenerLinux::create(&on_wake_request, tr);
+    if (listener == nullptr) {
+        std::fprintf(stderr, "[corewake] error: ListenerLinux::create() [Adapter] (verificar COREWAKE_TOKEN)\n");
+        translator_destroy(tr);
+        wol_packet_destroy(wp);
+        alias_cache_destroy(cache);
+        delete sender;
+        delete loader;
+        return 1;
     }
+
+    g_listener = listener;
+    std::signal(SIGINT, on_sigint);
+
+    std::printf("[corewake] escuchando en 0.0.0.0:%d — Ctrl+C para salir\n", listener->port());
+
+    listener->serve();  // blocks until stop()
 
     // ------------------------------------------------------------------
     // 5) Teardown
     // ------------------------------------------------------------------
+    delete listener;
+    g_listener = nullptr;
+
     translator_destroy(tr);
     wol_packet_destroy(wp);
     alias_cache_destroy(cache);

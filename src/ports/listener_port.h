@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 // Signature
-typedef int (*listener_receive_t)(const char* alias, void* user);
+typedef int (*listener_receive_t)(const char* alias, void* callback_context);
 
 #ifdef __cplusplus
 }

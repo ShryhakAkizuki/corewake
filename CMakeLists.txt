@@ -23,11 +23,14 @@ target_include_directories(corewake_core PUBLIC src)
 # Raspberry Pi 5 (Linux) 
 # ------------------------------------------------------------------
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_package(httplib CONFIG REQUIRED)
+
     add_library(corewake_adapter_pi STATIC
         src/adapters/raspberry_pi/sender_linux.cpp
         src/adapters/raspberry_pi/loader_linux.cpp
+        src/adapters/raspberry_pi/listener_linux.cpp
     )
-    target_link_libraries(corewake_adapter_pi PUBLIC corewake_core)
+    target_link_libraries(corewake_adapter_pi PUBLIC corewake_core httplib::httplib)
 
     add_subdirectory(platform/raspberry_pi)
 endif()
@@ -58,6 +61,12 @@ if(ENABLE_TESTS)
         target_link_libraries(test_raspberry_pi_loader_adapter PRIVATE
             corewake_adapter_pi corewake_core Catch2::Catch2WithMain)
         add_test(NAME test_raspberry_pi_loader_adapter COMMAND test_raspberry_pi_loader_adapter)
+
+        # Listener Adapter
+        add_executable(test_raspberry_pi_listener_adapter tests/test_raspberry_pi_listener_adapter.cpp)
+        target_link_libraries(test_raspberry_pi_listener_adapter PRIVATE
+            corewake_adapter_pi corewake_core Catch2::Catch2WithMain)
+        add_test(NAME test_raspberry_pi_listener_adapter COMMAND test_raspberry_pi_listener_adapter)
 
         # Test Aliases.INI
         add_custom_command(TARGET test_raspberry_pi_loader_adapter POST_BUILD
