@@ -68,6 +68,12 @@ if(ENABLE_TESTS)
             corewake_adapter_pi corewake_core Catch2::Catch2WithMain)
         add_test(NAME test_raspberry_pi_listener_adapter COMMAND test_raspberry_pi_listener_adapter)
 
+        # Integration - composition root de platform/raspberry_pi/main.cpp
+        add_executable(test_raspberry_pi_integration tests/test_raspberry_pi_integration.cpp)
+        target_link_libraries(test_raspberry_pi_integration PRIVATE
+            corewake_adapter_pi corewake_core Catch2::Catch2WithMain)
+        add_test(NAME test_raspberry_pi_integration COMMAND test_raspberry_pi_integration)
+
         # Test Aliases.INI
         add_custom_command(TARGET test_raspberry_pi_loader_adapter POST_BUILD
             COMMAND ${CMAKE_COMMAND}

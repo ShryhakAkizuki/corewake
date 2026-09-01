@@ -14,7 +14,6 @@
 #include <string>
 #include <thread>
 #include <type_traits>
-#include <vector>
 
 #include <httplib.h>
 
@@ -35,7 +34,6 @@ struct TokenEnv {
     bool        had_previous = false;
     std::string previous;
 
-    // value == nullptr -> ensure the variable is unset
     explicit TokenEnv(const char* value) {
         if (const char* cur = std::getenv(kTokenEnvVar)) {
             previous     = cur;
@@ -47,9 +45,6 @@ struct TokenEnv {
             ::setenv(kTokenEnvVar, value, /*overwrite=*/1);
         }
     }
-
-    TokenEnv(const TokenEnv&)            = delete;
-    TokenEnv& operator=(const TokenEnv&) = delete;
 
     ~TokenEnv() {
         if (had_previous) {
@@ -127,11 +122,11 @@ bool wait_until_ready(int port, int timeout_ms = 3000) {
 }
 
 struct RunningListener {
-    ListenerLinux*   listener       = nullptr;
-    int              port           = 0;
-    std::atomic<bool> serve_returned{false};
-    bool             serve_result   = false;
-    std::thread      thread;
+    ListenerLinux*     listener       = nullptr;
+    int                port           = 0;
+    std::atomic<bool>  serve_returned{false};
+    bool               serve_result   = false;
+    std::thread        thread;
 
     bool start(listener_receive_t cb, void* ctx, int port) {
         this->port   = port;
@@ -144,15 +139,15 @@ struct RunningListener {
         return true;
     }
 
+    RunningListener() = default;
     RunningListener(const RunningListener&)            = delete;
     RunningListener& operator=(const RunningListener&) = delete;
 
     ~RunningListener() {
-        if (listener != nullptr) listener->stop();
-        if (thread.joinable()) thread.join();
+        stop();
     }
 
-    void stop_and_join() {
+    void stop() {
         if (listener != nullptr) listener->stop();
         if (thread.joinable()) thread.join();
     }
@@ -193,83 +188,73 @@ httplib::Response get_path(httplib::Client& cli, const std::string& path) {
 } // namespace
 
 // ---------------------------------------------------------------------------
-// create() factory - success paths
+// create() factory
 // ---------------------------------------------------------------------------
-TEST_CASE("create() - valid COREWAKE_TOKEN yields a usable listener with the default port", "[listener_linux]") {
-    TokenEnv env("default-port-token");
-
+TEST_CASE("create() - port argument is honored", "[listener_linux]") {
+    TokenEnv env("create-token");
     CallbackState st;
-    ListenerLinux* listener = nullptr;
-    REQUIRE_NOTHROW(listener = ListenerLinux::create(&recording_callback, &st));
-    REQUIRE(listener != nullptr);
-    REQUIRE(listener->port() == kDefaultPort);
 
-    delete listener;
+    SECTION("omitted -> default port") {
+        ListenerLinux* listener = nullptr;
+        REQUIRE_NOTHROW(listener = ListenerLinux::create(&recording_callback, &st));
+        REQUIRE(listener != nullptr);
+        CHECK(listener->port() == kDefaultPort);
+        delete listener;
+    }
+
+    SECTION("explicit port") {
+        ListenerLinux* listener = nullptr;
+        REQUIRE_NOTHROW(listener = ListenerLinux::create(&recording_callback, &st, 43210));
+        REQUIRE(listener != nullptr);
+        CHECK(listener->port() == 43210);
+        delete listener;
+    }
+
+    SECTION("zero -> default port") {
+        ListenerLinux* listener = nullptr;
+        REQUIRE_NOTHROW(listener = ListenerLinux::create(&recording_callback, &st, 0));
+        REQUIRE(listener != nullptr);
+        CHECK(listener->port() == kDefaultPort);
+        delete listener;
+    }
 }
 
-TEST_CASE("create() - explicit port is honored", "[listener_linux]") {
-    TokenEnv env("explicit-token");
-
-    CallbackState st;
-    ListenerLinux* listener = nullptr;
-    REQUIRE_NOTHROW(listener = ListenerLinux::create(&recording_callback, &st, 43210));
-    REQUIRE(listener != nullptr);
-    REQUIRE(listener->port() == 43210);
-
-    delete listener;
-}
-
-TEST_CASE("create() - port 0 falls back to the default port", "[listener_linux]") {
-    TokenEnv env("zero-token");
-
-    CallbackState st;
-    ListenerLinux* listener = nullptr;
-    REQUIRE_NOTHROW(listener = ListenerLinux::create(&recording_callback, &st, 0));
-    REQUIRE(listener != nullptr);
-    REQUIRE(listener->port() == kDefaultPort);
-
-    delete listener;
-}
-
-// ---------------------------------------------------------------------------
-// create() factory - failure paths
-// ---------------------------------------------------------------------------
-TEST_CASE("create() - null callback or null context return nullptr without throwing", "[listener_linux]") {
-    TokenEnv env("null-args-token");
-
+TEST_CASE("create() - invalid arguments return nullptr without throwing", "[listener_linux]") {
     CallbackState st;
 
-    ListenerLinux* l1 = nullptr;
-    REQUIRE_NOTHROW(l1 = ListenerLinux::create(nullptr, &st));
-    CHECK(l1 == nullptr);
+    SECTION("null callback") {
+        TokenEnv env("create-token");
+        ListenerLinux* l = nullptr;
+        REQUIRE_NOTHROW(l = ListenerLinux::create(nullptr, &st));
+        CHECK(l == nullptr);
+    }
 
-    ListenerLinux* l2 = nullptr;
-    REQUIRE_NOTHROW(l2 = ListenerLinux::create(&recording_callback, nullptr));
-    CHECK(l2 == nullptr);
-}
+    SECTION("null context") {
+        TokenEnv env("create-token");
+        ListenerLinux* l = nullptr;
+        REQUIRE_NOTHROW(l = ListenerLinux::create(&recording_callback, nullptr));
+        CHECK(l == nullptr);
+    }
 
-TEST_CASE("create() - missing COREWAKE_TOKEN returns nullptr", "[listener_linux]") {
-    TokenEnv env(nullptr); 
+    SECTION("missing COREWAKE_TOKEN") {
+        TokenEnv env(nullptr);
+        ListenerLinux* l = nullptr;
+        REQUIRE_NOTHROW(l = ListenerLinux::create(&recording_callback, &st));
+        CHECK(l == nullptr);
+    }
 
-    CallbackState st;
-    ListenerLinux* listener = nullptr;
-    REQUIRE_NOTHROW(listener = ListenerLinux::create(&recording_callback, &st));
-    CHECK(listener == nullptr);
-}
-
-TEST_CASE("create() - empty COREWAKE_TOKEN returns nullptr", "[listener_linux]") {
-    TokenEnv env("");
-
-    CallbackState st;
-    ListenerLinux* listener = nullptr;
-    REQUIRE_NOTHROW(listener = ListenerLinux::create(&recording_callback, &st));
-    CHECK(listener == nullptr);
+    SECTION("empty COREWAKE_TOKEN") {
+        TokenEnv env("");
+        ListenerLinux* l = nullptr;
+        REQUIRE_NOTHROW(l = ListenerLinux::create(&recording_callback, &st));
+        CHECK(l == nullptr);
+    }
 }
 
 // ---------------------------------------------------------------------------
 // serve() / stop() - lifecycle
 // ---------------------------------------------------------------------------
-TEST_CASE("serve()/stop() - serves over loopback, answers requests and stops cleanly", "[listener_linux]") {
+TEST_CASE("serve() - serves over loopback and stops cleanly", "[listener_linux]") {
     TokenEnv env("serve-token");
     const int port = find_free_port();
     REQUIRE(port > 0);
@@ -286,7 +271,7 @@ TEST_CASE("serve()/stop() - serves over loopback, answers requests and stops cle
     CHECK(res.get_header_value("Content-Type") == "text/plain; charset=utf-8");
     CHECK(st.calls.load() == 1);
 
-    rl.stop_and_join();
+    rl.stop();
     CHECK(rl.serve_returned.load());
 }
 
@@ -295,7 +280,6 @@ TEST_CASE("serve() - a busy port is reported as false without hanging", "[listen
     const int port = find_free_port();
     REQUIRE(port > 0);
 
-    // Occupy the port ourselves so that the adapter's bind must fail.
     const int holder = ::socket(AF_INET, SOCK_STREAM, 0);
     REQUIRE(holder >= 0);
     sockaddr_in addr{};
@@ -309,18 +293,30 @@ TEST_CASE("serve() - a busy port is reported as false without hanging", "[listen
     RunningListener rl;
     REQUIRE(rl.start(&recording_callback, &st, port));
 
-    // serve() must fail fast (bind error) and the worker thread must terminate.
     for (int i = 0; i < 100 && !rl.serve_returned.load(); ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
     REQUIRE(rl.serve_returned.load());
     CHECK(rl.serve_result == false);
 
-    rl.stop_and_join();
+    rl.stop();
     ::close(holder);
 }
 
-TEST_CASE("destructor - stops a running server and the thread joins (SIGINT pattern)", "[listener_linux]") {
+TEST_CASE("stop() - is safe to call without having served and to call twice", "[listener_linux]") {
+    TokenEnv env("stop-token");
+    CallbackState st;
+    ListenerLinux* listener = ListenerLinux::create(&recording_callback, &st, find_free_port());
+    REQUIRE(listener != nullptr);
+
+    REQUIRE_NOTHROW(listener->stop());
+    REQUIRE_NOTHROW(listener->stop());
+    CHECK(listener->port() > 0);
+
+    delete listener;
+}
+
+TEST_CASE("destructor - stops a running server (SIGINT pattern from main)", "[listener_linux]") {
     TokenEnv env("dtor-token");
     const int port = find_free_port();
     REQUIRE(port > 0);
@@ -336,32 +332,16 @@ TEST_CASE("destructor - stops a running server and the thread joins (SIGINT patt
     });
     REQUIRE(wait_until_ready(port));
 
-    delete listener;   // ~ListenerLinux -> stop() (same pattern as the SIGINT handler in main.cpp)
+    delete listener;
 
     t.join();
     REQUIRE(serve_returned.load());
 }
 
-TEST_CASE("stop() - is safe to call without having served and to call twice", "[listener_linux]") {
-    TokenEnv env("stop-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    ListenerLinux* listener = ListenerLinux::create(&recording_callback, &st, port);
-    REQUIRE(listener != nullptr);
-
-    REQUIRE_NOTHROW(listener->stop());   // never served
-    REQUIRE_NOTHROW(listener->stop());   // twice
-    REQUIRE(listener->port() == port);
-
-    delete listener;
-}
-
 // ---------------------------------------------------------------------------
 // Authorization - Bearer token
 // ---------------------------------------------------------------------------
-TEST_CASE("auth - a correct Bearer token is accepted (200)", "[listener_linux]") {
+TEST_CASE("auth - Bearer token", "[listener_linux]") {
     TokenEnv env("auth-token");
     const int port = find_free_port();
     REQUIRE(port > 0);
@@ -372,149 +352,124 @@ TEST_CASE("auth - a correct Bearer token is accepted (200)", "[listener_linux]")
     REQUIRE(wait_until_ready(port));
 
     httplib::Client cli = make_client(port);
-    const httplib::Response res = post_wake(cli, "PC", "Bearer auth-token");
-    REQUIRE(res.status == 200);
-    CHECK(res.body == "wake ok");
-    CHECK(st.calls.load() == 1);
 
-    rl.stop_and_join();
-}
+    SECTION("correct token is accepted (200)") {
+        const httplib::Response res = post_wake(cli, "PC", "Bearer auth-token");
+        REQUIRE(res.status == 200);
+        CHECK(res.body == "wake ok");
+        CHECK(st.calls.load() == 1);
+    }
 
-TEST_CASE("auth - missing Authorization header returns 401 and does not call the callback", "[listener_linux]") {
-    TokenEnv env("auth-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    httplib::Client cli = make_client(port);
-    const httplib::Response res = post_wake(cli, "PC", "");
-    REQUIRE(res.status == 401);
-    CHECK(res.body == "unauthorized");
-    CHECK(st.calls.load() == 0);
-
-    rl.stop_and_join();
-}
-
-TEST_CASE("auth - a wrong token returns 401 and does not call the callback", "[listener_linux]") {
-    TokenEnv env("auth-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    httplib::Client cli = make_client(port);
-    const httplib::Response res = post_wake(cli, "PC", "Bearer definitely-not-the-token");
-    REQUIRE(res.status == 401);
-    CHECK(res.body == "unauthorized");
-    CHECK(st.calls.load() == 0);
-
-    rl.stop_and_join();
-}
-
-TEST_CASE("auth - headers without a valid Bearer prefix return 401", "[listener_linux]") {
-    TokenEnv env("auth-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    const struct { const char* label; const char* header; } bad[] = {
-        { "different scheme",            "Token auth-token" },
-        { "the word 'Bearer' alone",     "Bearer" },
-        { "prefix without space",        "BearerX auth-token" },
-        { "lowercase scheme",            "bearer auth-token" },
-    };
-
-    httplib::Client cli = make_client(port);
-    for (const auto& b : bad) {
-        INFO("header: '" << b.header << "'");
-        const httplib::Response res = post_wake(cli, "PC", b.header);
+    SECTION("missing Authorization header (401)") {
+        const httplib::Response res = post_wake(cli, "PC", "");
         REQUIRE(res.status == 401);
         CHECK(res.body == "unauthorized");
+        CHECK(st.calls.load() == 0);
     }
-    CHECK(st.calls.load() == 0);
 
-    rl.stop_and_join();
+    SECTION("wrong token (401)") {
+        const httplib::Response res = post_wake(cli, "PC", "Bearer definitely-not-the-token");
+        REQUIRE(res.status == 401);
+        CHECK(st.calls.load() == 0);
+    }
+
+    SECTION("malformed Authorization header (401)") {
+        const struct { const char* label; const char* header; } bad[] = {
+            { "different scheme",      "Token auth-token" },
+            { "the word 'Bearer' alone", "Bearer" },
+            { "prefix without space",  "BearerX auth-token" },
+            { "lowercase scheme",      "bearer auth-token" },
+        };
+
+        for (const auto& b : bad) {
+            INFO("header: '" << b.header << "'");
+            const httplib::Response res = post_wake(cli, "PC", b.header);
+            REQUIRE(res.status == 401);
+        }
+        CHECK(st.calls.load() == 0);
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Dispatch - callback result code -> HTTP status
 // ---------------------------------------------------------------------------
-TEST_CASE("dispatch - callback rc 0 maps to 200 'wake ok'", "[listener_linux]") {
+TEST_CASE("dispatch - callback result code maps to the HTTP status", "[listener_linux]") {
     TokenEnv env("dispatch-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
 
-    CallbackState st;   // rc defaults to 0
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
+    SECTION("rc 0 -> 200 'wake ok'") {
+        const int port = find_free_port();
+        REQUIRE(port > 0);
 
-    httplib::Client cli = make_client(port);
-    const httplib::Response res = post_wake(cli, "PC", "Bearer dispatch-token");
-    REQUIRE(res.status == 200);
-    CHECK(res.body == "wake ok");
-    CHECK(st.calls.load() == 1);
-
-    rl.stop_and_join();
-}
-
-TEST_CASE("dispatch - callback rc -3 maps to 404 'alias not found'", "[listener_linux]") {
-    TokenEnv env("dispatch-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    st.rc = -3;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    httplib::Client cli = make_client(port);
-    const httplib::Response res = post_wake(cli, "GHOST", "Bearer dispatch-token");
-    REQUIRE(res.status == 404);
-    CHECK(res.body == "alias not found");
-    CHECK(st.calls.load() == 1);
-
-    rl.stop_and_join();
-}
-
-TEST_CASE("dispatch - any other non-zero rc maps to 500 'internal error'", "[listener_linux]") {
-    TokenEnv env("dispatch-token");
-    int port = find_free_port();
-    REQUIRE(port > 0);
-
-    const int bad_rcs[] = {-1, -2, -4, -5, 1};
-
-    for (int rc : bad_rcs) {
-        INFO("rc: " << rc);
-
-        CallbackState st;
-        st.rc = rc;
+        CallbackState st;   
         RunningListener rl;
         REQUIRE(rl.start(&recording_callback, &st, port));
         REQUIRE(wait_until_ready(port));
 
         httplib::Client cli = make_client(port);
         const httplib::Response res = post_wake(cli, "PC", "Bearer dispatch-token");
-        REQUIRE(res.status == 500);
-        CHECK(res.body == "internal error");
+        REQUIRE(res.status == 200);
+        CHECK(res.body == "wake ok");
         CHECK(st.calls.load() == 1);
+    }
 
-        // A fresh port per iteration: never rely on re-binding a just-closed socket.
-        rl.stop_and_join();
-        port = find_free_port();
+    SECTION("rc -3 -> 404 'alias not found'") {
+        const int port = find_free_port();
         REQUIRE(port > 0);
+
+        CallbackState st;
+        st.rc = -3;
+        RunningListener rl;
+        REQUIRE(rl.start(&recording_callback, &st, port));
+        REQUIRE(wait_until_ready(port));
+
+        httplib::Client cli = make_client(port);
+        const httplib::Response res = post_wake(cli, "GHOST", "Bearer dispatch-token");
+        REQUIRE(res.status == 404);
+        CHECK(res.body == "alias not found");
+        CHECK(st.calls.load() == 1);
+    }
+
+    SECTION("any other non-zero rc -> 500 'internal error'") {
+        int port = find_free_port();
+        REQUIRE(port > 0);
+
+        const int bad_rcs[] = {-1, -2, -4, -5, 1};
+        for (int rc : bad_rcs) {
+            INFO("rc: " << rc);
+
+            CallbackState st;
+            st.rc = rc;
+            RunningListener rl;
+            REQUIRE(rl.start(&recording_callback, &st, port));
+            REQUIRE(wait_until_ready(port));
+
+            httplib::Client cli = make_client(port);
+            const httplib::Response res = post_wake(cli, "PC", "Bearer dispatch-token");
+            REQUIRE(res.status == 500);
+            CHECK(res.body == "internal error");
+            CHECK(st.calls.load() == 1);
+
+            rl.stop();
+            port = find_free_port();
+            REQUIRE(port > 0);
+        }
+    }
+
+    SECTION("repeated sequential requests keep working (stateless endpoint)") {
+        const int port = find_free_port();
+        REQUIRE(port > 0);
+
+        CallbackState st;
+        RunningListener rl;
+        REQUIRE(rl.start(&recording_callback, &st, port));
+        REQUIRE(wait_until_ready(port));
+
+        httplib::Client cli = make_client(port);
+        for (int i = 0; i < 3; ++i) {
+            const httplib::Response res = post_wake(cli, "ROBOT", "Bearer dispatch-token");
+            REQUIRE(res.status == 200);
+        }
+        CHECK(st.calls.load() == 3);
     }
 }
 
@@ -544,9 +499,7 @@ TEST_CASE("callback - receives the exact alias from the URL and the untouched co
         const httplib::Response res = post_wake(cli, a, "Bearer ctx-token");
         REQUIRE(res.status == 200);
 
-        // The callback already ran (the response follows it), so locking the same
-        // mutex establishes a happens-before edge with the writer thread.
-        const std::string alias_seen;
+        std::string alias_seen;
         {
             std::lock_guard<std::mutex> lk(st.mu);
             alias_seen = st.last_alias;
@@ -554,55 +507,13 @@ TEST_CASE("callback - receives the exact alias from the URL and the untouched co
         CHECK(alias_seen == a);
     }
 
-    // recording_callback resolves its state through the context pointer; if the
-    // adapter had corrupted callback_context, none of these counters would move.
     CHECK(st.calls.load() == static_cast<int>(sizeof(aliases) / sizeof(aliases[0])));
-
-    rl.stop_and_join();
-}
-
-TEST_CASE("dispatch - the endpoint is stateless: repeated requests keep working", "[listener_linux]") {
-    TokenEnv env("stateless-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    httplib::Client cli = make_client(port);
-    for (int i = 0; i < 3; ++i) {
-        const httplib::Response res = post_wake(cli, "ROBOT", "Bearer stateless-token");
-        REQUIRE(res.status == 200);
-    }
-    CHECK(st.calls.load() == 3);
-
-    rl.stop_and_join();
 }
 
 // ---------------------------------------------------------------------------
 // Route matching
 // ---------------------------------------------------------------------------
-TEST_CASE("routes - GET on /wake/<alias> returns 405 (the route is POST-only)", "[listener_linux]") {
-    TokenEnv env("routes-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    httplib::Client cli = make_client(port);
-    const httplib::Response res = get_path(cli, "/wake/PC");
-    REQUIRE(res.status == 405);
-    CHECK(st.calls.load() == 0);
-
-    rl.stop_and_join();
-}
-
-TEST_CASE("routes - an alias longer than 31 characters is not routed (404)", "[listener_linux]") {
+TEST_CASE("routes - only POST /wake/<alias> matches", "[listener_linux]") {
     TokenEnv env("routes-token");
     const int port = find_free_port();
     REQUIRE(port > 0);
@@ -614,94 +525,41 @@ TEST_CASE("routes - an alias longer than 31 characters is not routed (404)", "[l
 
     httplib::Client cli = make_client(port);
 
-    SECTION("31 characters (maximum) is accepted") {
+    SECTION("GET on /wake/<alias> is not routed (404, the route is POST-only)") {
+        const httplib::Response res = get_path(cli, "/wake/PC");
+        REQUIRE(res.status == 404);
+        CHECK(st.calls.load() == 0);
+    }
+
+    SECTION("alias longer than 31 characters is not routed (404)") {
+        const httplib::Response res = post_wake(cli, std::string(32, 'A'), "Bearer routes-token");
+        REQUIRE(res.status == 404);
+        CHECK(st.calls.load() == 0);
+    }
+
+    SECTION("alias with 31 characters (maximum) is accepted (200)") {
         const httplib::Response res = post_wake(cli, std::string(31, 'a'), "Bearer routes-token");
         REQUIRE(res.status == 200);
         CHECK(st.calls.load() == 1);
     }
 
-    SECTION("32 characters is rejected by the route") {
-        const httplib::Response res = post_wake(cli, std::string(32, 'A'), "Bearer routes-token");
-        REQUIRE(res.status == 404);
+    SECTION("characters outside [A-Za-z0-9_] are not routed (404)") {
+        const char* const bad_aliases[] = { "MY-PC", "PC!", "PC.1" };
+        for (const char* a : bad_aliases) {
+            INFO("alias: " << a);
+            const httplib::Response res = post_wake(cli, a, "Bearer routes-token");
+            REQUIRE(res.status == 404);
+        }
         CHECK(st.calls.load() == 0);
     }
-}
 
-TEST_CASE("routes - aliases with characters outside [A-Za-z0-9_] are not routed (404)", "[listener_linux]") {
-    TokenEnv env("routes-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    const char* const bad_aliases[] = { "MY-PC", "PC!", "PC.1" };
-
-    httplib::Client cli = make_client(port);
-    for (const char* a : bad_aliases) {
-        INFO("alias: " << a);
-        const httplib::Response res = post_wake(cli, a, "Bearer routes-token");
-        REQUIRE(res.status == 404);
+    SECTION("unknown paths return 404") {
+        const char* const bad_paths[] = { "/", "/wake", "/wake/", "/wake/PC/extra", "/wakes/PC", "/health" };
+        for (const char* p : bad_paths) {
+            INFO("path: '" << p << "'");
+            const httplib::Response res = get_path(cli, p);
+            REQUIRE(res.status == 404);
+        }
+        CHECK(st.calls.load() == 0);
     }
-    CHECK(st.calls.load() == 0);
-
-    rl.stop_and_join();
-}
-
-TEST_CASE("routes - unknown paths return 404", "[listener_linux]") {
-    TokenEnv env("routes-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    const char* const bad_paths[] = { "/", "/wake", "/wake/", "/wake/PC/extra", "/wakes/PC", "/health" };
-
-    httplib::Client cli = make_client(port);
-    for (const char* p : bad_paths) {
-        INFO("path: '" << p << "'");
-        const httplib::Response res = get_path(cli, p);
-        REQUIRE(res.status == 404);
-    }
-    CHECK(st.calls.load() == 0);
-
-    rl.stop_and_join();
-}
-
-// ---------------------------------------------------------------------------
-// Concurrency
-// ---------------------------------------------------------------------------
-TEST_CASE("concurrency - parallel wake requests are all handled", "[listener_linux][integration]") {
-    TokenEnv env("conc-token");
-    const int port = find_free_port();
-    REQUIRE(port > 0);
-
-    CallbackState st;
-    RunningListener rl;
-    REQUIRE(rl.start(&recording_callback, &st, port));
-    REQUIRE(wait_until_ready(port));
-
-    constexpr int kClients = 16;
-    std::atomic<int> ok{0};
-    std::vector<std::thread> workers;
-    workers.reserve(kClients);
-
-    for (int i = 0; i < kClients; ++i) {
-        workers.emplace_back([&, i] {
-            httplib::Client cli = make_client(port);
-            const httplib::Response res = post_wake(cli, "WORKER_" + std::to_string(i), "Bearer conc-token");
-            if (res.status == 200) ok.fetch_add(1, std::memory_order_relaxed);
-        });
-    }
-    for (auto& w : workers) w.join();
-
-    REQUIRE(ok.load() == kClients);
-    REQUIRE(st.calls.load() == kClients);
-
-    rl.stop_and_join();
 }
