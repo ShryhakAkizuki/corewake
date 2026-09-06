@@ -10,7 +10,7 @@ foreach(t test_wol_packet test_aliases_cache test_translator)
     target_include_directories(${t} PRIVATE ${COREWAKE_TEST_INCLUDE_DIRS})
     target_link_libraries(${t} PRIVATE corewake_core Catch2::Catch2WithMain)
     add_test(NAME ${t} COMMAND ${t})
-    set_tests_properties(${t} PROPERTIES LABELS "core;unit")
+    set_tests_properties(${t} PROPERTIES LABELS "core;unit" TIMEOUT 30)
 endforeach()
 
 # Catch2 en MSVC requiere /Zc:__cplusplus
@@ -32,7 +32,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_include_directories(${t} PRIVATE ${COREWAKE_TEST_INCLUDE_DIRS})
         target_link_libraries(${t} PRIVATE corewake_adapter_pi Catch2::Catch2WithMain)
         add_test(NAME ${t} COMMAND ${t})
-        set_tests_properties(${t} PROPERTIES LABELS "pi;unit")
+        set_tests_properties(${t} PROPERTIES LABELS "pi;unit" TIMEOUT 30)
     endforeach()
 
     target_compile_definitions(test_loader_linux PRIVATE
@@ -47,19 +47,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         COMMENT "corewake: generando fixture aliases.INI para test_loader_linux (build-time)")
 
     # -------------------- Integración --------------------
-    foreach(t test_loader_to_cache test_core_to_sender)
+    foreach(t test_loader_to_cache test_core_to_sender test_full_pipeline)
         add_executable(${t} integration/raspberry_pi/${t}.cpp)
         target_include_directories(${t} PRIVATE ${COREWAKE_TEST_INCLUDE_DIRS})
         target_link_libraries(${t} PRIVATE corewake_adapter_pi Catch2::Catch2WithMain)
         add_test(NAME ${t} COMMAND ${t})
-        set_tests_properties(${t} PROPERTIES LABELS "pi;integration")
+        set_tests_properties(${t} PROPERTIES LABELS "pi;integration" TIMEOUT 60)
     endforeach()
-
-    # -------------------- E2E --------------------
-    add_executable(test_http_wake_flow e2e/raspberry_pi/test_http_wake_flow.cpp)
-    target_include_directories(test_http_wake_flow PRIVATE ${COREWAKE_TEST_INCLUDE_DIRS})
-    target_link_libraries(test_http_wake_flow PRIVATE corewake_adapter_pi Catch2::Catch2WithMain)
-    add_test(NAME test_http_wake_flow COMMAND test_http_wake_flow)
-    set_tests_properties(test_http_wake_flow PROPERTIES LABELS "pi;e2e")
 
 endif()

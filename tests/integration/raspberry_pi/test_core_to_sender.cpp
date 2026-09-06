@@ -17,14 +17,7 @@ void mac_str_to_bytes(const char* s, uint8_t out[MAC_ADDRESS_SIZE]) {
 
 } // namespace
 
-// ==========================================================
-// Integración: core_wake (real) + SenderLinux (real) sobre
-// loopback UDP. Aquí viven los casos que ejercitan el
-// transporte real (sendto/recvfrom); los unitarios puros
-// están en tests/unit/adapters/raspberry_pi/test_sender_linux.cpp
-// ==========================================================
-
-TEST_CASE("send - UDP datagram arrives with exact bytes", "[core_to_sender][pi][integration]") {
+TEST_CASE("send - UDP datagram arrives with exact bytes", "[core_to_sender][integration][pi]") {
     UdpLoopbackReceiver rx;
     REQUIRE(rx.valid());
 
@@ -49,11 +42,7 @@ TEST_CASE("send - UDP datagram arrives with exact bytes", "[core_to_sender][pi][
     delete s;
 }
 
-// ==========================================================
-// core_wake - como sender_port del core
-// ==========================================================
-
-TEST_CASE("core_wake - through real SenderLinux over loopback", "[core_to_sender][pi][integration]") {
+TEST_CASE("core_wake - through real SenderLinux over loopback", "[core_to_sender][integration][pi]") {
     UdpLoopbackReceiver rx;
     REQUIRE(rx.valid());
 

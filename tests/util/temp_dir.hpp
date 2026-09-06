@@ -27,7 +27,6 @@ struct TempDir {
     TempDir(const TempDir&) = delete;
     TempDir& operator=(const TempDir&) = delete;
 
-    // Write a file at <dir>/<name>.
     std::filesystem::path write(const std::string& name, const std::string& content) const {
         const std::filesystem::path p = dir / name;
         std::ofstream ofs(p, std::ios::binary);
@@ -35,7 +34,6 @@ struct TempDir {
         return p;
     }
 
-    // Write <dir>/aliases/aliases.INI (the layout LoaderLinux resolves by default).
     std::filesystem::path write_ini(const std::string& content) const {
         const std::filesystem::path subdir = dir / "aliases";
         std::filesystem::create_directories(subdir);

@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Opciones de compilación
-option(ENABLE_TESTS "Habilitar pruebas unitarias" ON)
+option(ENABLE_TESTS "Habilitar pruebas (unit e integración)" ON)
 
 # ------------------------------------------------------------------
 # Core

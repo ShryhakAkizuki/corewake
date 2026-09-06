@@ -19,7 +19,7 @@ struct UdpLoopbackReceiver {
     int      fd   = -1;
     uint16_t port = 0;
 
-    UdpLoopbackReceiver() {
+    explicit UdpLoopbackReceiver(int timeout_ms = 250) {
         fd = ::socket(AF_INET, SOCK_DGRAM, 0);
         if (fd < 0) return;
 
@@ -43,8 +43,8 @@ struct UdpLoopbackReceiver {
         port = ntohs(addr.sin_port);
 
         timeval tv{};
-        tv.tv_sec  = 2;
-        tv.tv_usec = 0;
+        tv.tv_sec  = timeout_ms / 1000;
+        tv.tv_usec = (timeout_ms % 1000) * 1000;
         ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     }
 
@@ -63,7 +63,6 @@ struct UdpLoopbackReceiver {
     }
 };
 
-// REQUIREs that buf is a well-formed WOL magic packet for the given MAC.
 inline void require_magic_packet(const uint8_t buf[MAGIC_PACKET_SIZE], const uint8_t mac[MAC_ADDRESS_SIZE]) {
     for (int i = 0; i < BROADCAST_BYTES; ++i)
         REQUIRE(buf[i] == 0xFF);

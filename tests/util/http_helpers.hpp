@@ -84,16 +84,4 @@ inline httplib::Response post_wake(httplib::Client& cli, const std::string& alia
     return res;
 }
 
-inline httplib::Response get_path(httplib::Client& cli, const std::string& path) {
-    httplib::Request req;
-    req.method = "GET";
-    req.path   = path;
-
-    httplib::Response res;
-    httplib::Error err = httplib::Error::Success;
-    const bool sent = cli.send(req, res, err);
-    if (!sent) INFO("client error code: " << static_cast<int>(err));
-    return res;
-}
-
 } // namespace corewake::test
